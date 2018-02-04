@@ -85,6 +85,43 @@
             messageElement.scrollTop = actualHeight - showHeight
         }
     }
+//    聊天窗口闪烁
+    var isWindowFocus = true;
+    function focusin() { isWindowFocus=true;}
+    function focusout() { isWindowFocus=false;}
+    //注册焦点变化监听器
+    if ("onfocusin" in document){//for IE
+        document.onfocusin = focusin;
+        document.onfocusout = focusout;
+    } else {
+        window.onblur = focusout;
+        window.onfocus= focusin;
+    }
+    var flashStep=0;  //交替变量
+    var flashTitleRun = false; //是否正在执行
+    var normalTitle = "chat room";
+    function flashTitle()
+    {
+        //仅窗口不在焦点时闪烁title，回到焦点时停止闪烁并将title恢复正常
+        if(isWindowFocus){//当前处于焦点
+            document.title=normalTitle;
+            flashTitleRun = false;
+            return;//退出循环
+        }
+
+        flashTitleRun = true;
+        flashStep++;
+        if (flashStep==3) {flashStep=1;}
+        if (flashStep==1) {document.title="【您有新的消息】";}
+        if (flashStep==2) {document.title="【　　　　　　】";}
+        setTimeout("flashTitle()",500);  //循环
+    }
+    //调用这个执行标题闪烁，而不是直接调用flashTitle，保证多次调用只会执行一次。
+    function doFlashTitle(){
+        if(!flashTitleRun)//没有执行时，才执行
+            flashTitle();
+    }
+
     $(function () {
         layer.prompt({title: '请输入您的昵称', closeBtn: 0, btn: ['确认'], offset: ['50px', '100px']}, function (name, index) {
             var socket = io();
@@ -106,6 +143,7 @@
             socket.on('chat message', function (msg) {
                 $('#messages').append($('<li>').text(msg));
                 changeScrollPosition();
+                doFlashTitle();
             });
             //用户加入的响应
             socket.on('user join', function (msg) {
