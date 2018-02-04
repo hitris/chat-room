@@ -54,7 +54,7 @@
         }
 
         /*#messages li:nth-child(odd) {*/
-            /*background: #eee;*/
+        /*background: #eee;*/
         /*}*/
     </style>
 </head>
@@ -69,6 +69,7 @@
 <script src="/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 <script src="/layer-v3.1.1/layer/layer.js"></script>
+<script src="/axios.js"></script>
 <script>
     function isNull(str) {
         if (str == "") return true;
@@ -85,49 +86,74 @@
             messageElement.scrollTop = actualHeight - showHeight
         }
     }
-//    聊天窗口闪烁
+    //收到信息后窗口闪烁
     var isWindowFocus = true;
-    function focusin() { isWindowFocus=true;}
-    function focusout() { isWindowFocus=false;}
+    function focusin() {
+        isWindowFocus = true;
+    }
+    function focusout() {
+        isWindowFocus = false;
+    }
     //注册焦点变化监听器
-    if ("onfocusin" in document){//for IE
+    if ("onfocusin" in document) {//for IE
         document.onfocusin = focusin;
         document.onfocusout = focusout;
     } else {
         window.onblur = focusout;
-        window.onfocus= focusin;
+        window.onfocus = focusin;
     }
-    var flashStep=0;  //交替变量
+    var flashStep = 0;  //交替变量
     var flashTitleRun = false; //是否正在执行
     var normalTitle = "chat room";
-    function flashTitle()
-    {
+    function flashTitle() {
         //仅窗口不在焦点时闪烁title，回到焦点时停止闪烁并将title恢复正常
-        if(isWindowFocus){//当前处于焦点
-            document.title=normalTitle;
+        if (isWindowFocus) {//当前处于焦点
+            document.title = normalTitle;
             flashTitleRun = false;
             return;//退出循环
         }
 
         flashTitleRun = true;
         flashStep++;
-        if (flashStep==3) {flashStep=1;}
-        if (flashStep==1) {document.title="【您有新的消息】";}
-        if (flashStep==2) {document.title="【　　　　　　】";}
-        setTimeout("flashTitle()",500);  //循环
+        if (flashStep == 3) {
+            flashStep = 1;
+        }
+        if (flashStep == 1) {
+            document.title = "【您有新的消息】";
+        }
+        if (flashStep == 2) {
+            document.title = "【　　　　　　】";
+        }
+        setTimeout("flashTitle()", 500);  //循环
     }
     //调用这个执行标题闪烁，而不是直接调用flashTitle，保证多次调用只会执行一次。
-    function doFlashTitle(){
-        if(!flashTitleRun)//没有执行时，才执行
+    function doFlashTitle() {
+        if (!flashTitleRun)//没有执行时，才执行
             flashTitle();
     }
 
+
     $(function () {
+
         layer.prompt({title: '请输入您的昵称', closeBtn: 0, btn: ['确认'], offset: ['50px', '100px']}, function (name, index) {
             var socket = io();
-            //发送昵称
-            socket.emit('set name', name);
-            layer.close(index);
+            checkName(name);
+            //校验名称是否重复
+            function checkName(name) {
+                axios.get('/api/checkName?name=' + name).then(function (response) {
+                    var responseData = response.data;
+                    if (responseData.status == '1') {
+                        //发送昵称
+                        socket.emit('set name', name);
+                        layer.close(index);
+                    } else {
+                        alert(responseData.message);
+                        return false;
+                    }
+                }).catch(function (error) {
+                    console.error(error);
+                });
+            }
             //发送信息
             $('form').submit(function () {
                 var sendMessage = $('#m').val();

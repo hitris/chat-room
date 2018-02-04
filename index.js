@@ -3,13 +3,39 @@ var app = express();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 
+//user数据
+var data = [];
+
 app.use(express.static('public'));
 
 app.get('/', function (req, res) {
 	res.sendFile(__dirname + '/index.html')
 });
-//user数据
-var data = [];
+app.get('/api/checkName',function (req, res) {
+	var name = req.query.name;
+	var message = '';
+	var status = 0;
+	if(name == ''){
+		status =0;
+		message = '昵称不能为空'
+	}else if(!checkName(name)){
+		status =0;
+		message = '昵称已被占用，换个新昵称吧'
+	}else{
+		status = 1;
+		message = '昵称校验通过'
+	}
+	res.status(200).send({status:status,message:message})
+});
+
+function checkName(name) {
+	for (var i = 0; i < data.length; i++) {
+		if (data[i].name == name) {
+			return false;
+		}
+	}
+	return true;
+}
 io.on('connection', function (socket) {
 //离开
 	socket.on('disconnect', function () {
