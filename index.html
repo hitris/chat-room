@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>chat room</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font: 13px Helvetica, Arial;
+        }
+
+        form {
+            background: #000;
+            padding: 3px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        form input {
+            border: 0;
+            padding: 10px;
+            width: 90%;
+            margin-right: .5%;
+            float: left;
+        }
+
+        form button {
+            width: 9%;
+            background: rgb(130, 224, 255);
+            border: none;
+            padding: 10px;
+            float: left;
+        }
+
+        #messages {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            position: fixed;
+            top: 40px;
+            bottom: 41px;
+            width: 100%;
+            overflow-y: scroll;
+        }
+
+        #messages li {
+            padding: 5px 10px;
+        }
+
+        /*#messages li:nth-child(odd) {*/
+            /*background: #eee;*/
+        /*}*/
+    </style>
+</head>
+<body>
+<p style="height: 20px;background-color: #ff9900;"> who’s online：<span id="online"></span></p>
+<p style="height: 20px;background-color: #ffcc99;" id="typing"></p>
+<ul id="messages"></ul>
+<form action="">
+    <input type="text" id="m" autocomplete="off"/>
+    <button>Send</button>
+</form>
+<script src="/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+<script src="/layer-v3.1.1/layer/layer.js"></script>
+<script>
+    function isNull(str) {
+        if (str == "") return true;
+        var regu = "^[ ]+$";
+        var re = new RegExp(regu);
+        return re.test(str);
+    }
+    //滚动聊天框
+    function changeScrollPosition() {
+        var messageElement = document.querySelector('#messages');
+        var showHeight = messageElement.offsetHeight;
+        var actualHeight = messageElement.children.length * 28;
+        if (actualHeight > showHeight) {
+            messageElement.scrollTop = actualHeight - showHeight
+        }
+    }
+    $(function () {
+        layer.prompt({title: '请输入您的昵称', closeBtn: 0, btn: ['确认'], offset: ['50px', '100px']}, function (name, index) {
+            var socket = io();
+            //发送昵称
+            socket.emit('set name', name);
+            layer.close(index);
+            //发送信息
+            $('form').submit(function () {
+                var sendMessage = $('#m').val();
+                if (!isNull(sendMessage)) {
+                    socket.emit('chat message', sendMessage);
+                    $('#messages').append($('<li>').text(sendMessage).css({'text-align':'right','background':'#eee'}));
+                    $('#m').val('');
+                    changeScrollPosition()
+                }
+                return false;
+            });
+            //收到聊天信息的响应
+            socket.on('chat message', function (msg) {
+                $('#messages').append($('<li>').text(msg));
+                changeScrollPosition();
+            });
+            //用户加入的响应
+            socket.on('user join', function (msg) {
+                $('#messages').append($('<li>').text(msg).css('background-color', 'green'))
+            });
+            //用户退出的响应
+            socket.on('user exit', function (msg) {
+                $('#messages').append($('<li>').text(msg).css('background-color', '#9a9da2'))
+            });
+            //其他用户正在输入
+            socket.on('show typing', function (msg) {
+                if ($('#typing').html() == '') {
+                    $('#typing').html(msg + '.');
+                    setTimeout(function () {
+                        $('#typing').html(msg + '..');
+                    }, 500);
+                    setTimeout(function () {
+                        $('#typing').html(msg + '...');
+                    }, 1000);
+                    setTimeout(function () {
+                        $('#typing').html('');
+                    }, 2000);
+                } else {
+                    //console.log('正在输入，不处理')
+                }
+            });
+
+            //正在输入
+            $('#m').bind('keydown', function () {
+                socket.emit('typing');
+            });
+
+            //显示当前在线人数
+            socket.on('users', function (users) {
+                $('#online').html(users)
+            });
+
+        });
+
+
+    });
+
+</script>
+</body>
+</html>
